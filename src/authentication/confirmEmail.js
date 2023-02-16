@@ -10,7 +10,7 @@ async function confirm_email(event, context){
             TableName: process.env.CLIENT_TABLE,
             Key: {email}
         }).promise()
-        data = result;
+        data = result.Item;
     }catch(err){
         console.error(err)
         return{
@@ -18,7 +18,8 @@ async function confirm_email(event, context){
             body: JSON.stringify({message: err.message})
         }
     }
-    if(data.Authtoken == token){
+
+    if(data.authToken == token){
         const params = {
             UserPoolId: process.env.USER_POOL_ID,
             Username: email,
@@ -29,8 +30,32 @@ async function confirm_email(event, context){
                 }
             ]
         }
+
+        const _params = {
+            Password: data.password,
+            UserPoolId: process.env.USER_POOL_ID,
+            Username: email,
+            Permanent: true
+        }
+
+        const updateParams = {
+            TableName: process.env.CLIENT_TABLE,
+            Key: email,
+            UpdateExpression: "set #token = :n",
+            ExpressionAttributeValues: {
+                ':n' : "null"
+            },
+            ExpressionAttributeNames: {
+                '#token' : 'authToken'
+            },
+            ReturnValues: "ALL_NEW"
+        }
+
         try{
-           await cognito.adminUpdateUserAttributes(params).promise()
+           await cognito.adminUpdateUserAttributes(params).promise();
+           await cognito.adminSetUserPassword(_params).promise();
+           const result = await dynamodb.update(updateParams).promise()
+           console.log(result);
            return{
             statusCode: 200,
             body: JSON.stringify({message: 'Email verified successfully'})
@@ -45,7 +70,7 @@ async function confirm_email(event, context){
     }else{
         return {
             statusCode: 404,
-            message: JSON.stringify({message: "Incorrect authentication code"})
+            body: JSON.stringify({message: "Incorrect authentication code"})
         }
     }
 }

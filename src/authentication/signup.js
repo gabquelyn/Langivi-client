@@ -1,4 +1,5 @@
 import AWS from "aws-sdk";
+import token from "../../lib/accessToken"
 const cognito = new AWS.CognitoIdentityServiceProvider();
 const dynamodb = new AWS.DynamoDB.DocumentClient();
 const tableName = process.env.CLIENT_TABLE;
@@ -20,18 +21,6 @@ async function signup(event, context) {
     ],
   };
 
-  const paramsForSetPass = {
-    Password: password,
-    UserPoolId,
-    Username: email,
-    Permanent: true,
-  };
-
-  const _params = {
-    UserPoolId,
-    Username: email,
-  };
-
   const Item = {
     email,
     profile: {
@@ -44,21 +33,19 @@ async function signup(event, context) {
       image: "null",
     },
     projects: [],
-    password,
-    token: "null",
+    authToken: "null",
+    password
   };
 
   try {
     const response = await cognito.adminCreateUser(params).promise();
     if (response.User) {
-    //   await cognito.adminCreateUser(_params).promise();
-    //   await cognito.adminSetUserPassword(paramsForSetPass).promise();
-    //   await dynamodb
-    //     .put({
-    //       TableName: tableName,
-    //       Item,
-    //     })
-    //     .promise();
+      await dynamodb
+        .put({
+          TableName: tableName,
+          Item,
+        })
+        .promise(); 
     return{
         statusCode: 201,
         body: JSON.stringify({message: "Created a new user!"})
