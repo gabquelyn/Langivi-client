@@ -1,25 +1,16 @@
-import AWS from "aws-sdk"
-const dynamodb = new AWS.DynamoDB.DocumentClient();
+import AWS from "aws-sdk";
+import { get } from "../../lib/actions";
+import sendResponse from "../../lib/sendResponse";
 const cognito = new AWS.CognitoIdentityServiceProvider();
 async function confirm_email(event, context){
-    let data;
     const {token, email} = JSON.parse(event.body);
 
-    try{
-        const result = await dynamodb.get({
-            TableName: process.env.CLIENT_TABLE,
-            Key: {email}
-        }).promise()
-        data = result.Item;
-    }catch(err){
-        console.error(err)
-        return{
-            statusCode: 501,
-            body: JSON.stringify({message: err.message})
-        }
+    const result = await get(process.env.CLIENT_TABLE, {email})
+    if(result.error){
+        return sendResponse(501, {message: result.error.message})
     }
 
-    if(data.authToken == token){
+    if(result.data.authToken == token){
         const params = {
             UserPoolId: process.env.USER_POOL_ID,
             Username: email,
@@ -32,46 +23,22 @@ async function confirm_email(event, context){
         }
 
         const _params = {
-            Password: data.password,
+            Password: result.data.password,
             UserPoolId: process.env.USER_POOL_ID,
             Username: email,
             Permanent: true
         }
 
-        const updateParams = {
-            TableName: process.env.CLIENT_TABLE,
-            Key: email,
-            UpdateExpression: "set #token = :n",
-            ExpressionAttributeValues: {
-                ':n' : "null"
-            },
-            ExpressionAttributeNames: {
-                '#token' : 'authToken'
-            },
-            ReturnValues: "ALL_NEW"
-        }
-
         try{
            await cognito.adminUpdateUserAttributes(params).promise();
            await cognito.adminSetUserPassword(_params).promise();
-           const result = await dynamodb.update(updateParams).promise()
-           console.log(result);
-           return{
-            statusCode: 200,
-            body: JSON.stringify({message: 'Email verified successfully'})
-           }
+           return sendResponse(200, {message: 'Email verified successfully'})
         }catch(err){
             console.error(err.stack);
-            return{
-                statusCode: 501,
-                body: JSON.stringify({message: err.stack})
-            }
+            return sendResponse(501, {message: err.stack})
         }
     }else{
-        return {
-            statusCode: 404,
-            body: JSON.stringify({message: "Incorrect authentication code"})
-        }
+        return sendResponse(404, {message: 'Incorrect authentication code'})
     }
 }
 

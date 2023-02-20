@@ -17,6 +17,7 @@ provider:
     CLIENT_ID: { Ref: UserClient }
     CLIENT_TABLE: ${self:service}-clientTable-${sls:stage}
     MAIL_QUEUE_URL: ${self:custom.MailQueue.url}
+    REGION: ${self:custom.region}
   iam:
     role:
       statements:
@@ -34,6 +35,14 @@ provider:
             - ${self:custom.clientTableArn}
             - ${self:custom.userPoolArn}
             - ${self:custom.MailQueue.arn}
+  httpApi:
+    authorizers:
+      cAuthorizer:
+        type: jwt
+        identitySource: $request.header.Authorization
+        issuerUrl: ${self:custom.cognitoIssuerUrl.Value}
+        audience: 
+          - !Ref UserClient
 
 resources:
   Resources:
@@ -50,7 +59,6 @@ resources:
             MinimumLength: 8
         AutoVerifiedAttributes:
           - email
-       
 
     UserClient:
       Type: AWS::Cognito::UserPoolClient
@@ -91,12 +99,12 @@ functions:
           path: /signin
           method: POST
 
-  # getToken:
-  #   handler: src/authentication/generateToken.handler
-  #   events:
-  #     - httpApi:
-  #         path: /token
-  #         method: POST
+  getToken:
+    handler: src/authentication/generateToken.handler
+    events:
+      - httpApi:
+          path: /auth_token
+          method: POST
 
   confirmEmail:
     handler: src/authentication/confirmEmail.handler
@@ -104,10 +112,30 @@ functions:
       - httpApi:
           path: /auth_email
           method: POST
+  
+  clientAcc:
+    handler: src/client/getprofile.handler
+    events:
+      - httpApi:
+          path: /profile
+          method: GET
+          authorizer:
+            name: cAuthorizer
+            
+          
 
 custom:
   clientTableArn: !GetAtt ClientTable.Arn
   userPoolArn: !GetAtt UserPool.Arn
+  region: us-east-1
+  cognitoIssuerUrl: 
+    Value: !Join
+      - ''
+      - - 'https://cognito-idp.'
+        - !Ref 'AWS::Region'
+        - '.amazonaws.com/'
+        - !Ref UserPool
+
   MailQueue:
     arn: !ImportValue MailQueue-${sls:stage}-Arn
     url: !ImportValue MailQueue-${sls:stage}-Url

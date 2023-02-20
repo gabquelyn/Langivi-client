@@ -1,7 +1,7 @@
 import AWS from "aws-sdk";
-import token from "../../lib/accessToken"
+import sendResponse from "../../lib/sendResponse";
+import { put } from "../../lib/actions";
 const cognito = new AWS.CognitoIdentityServiceProvider();
-const dynamodb = new AWS.DynamoDB.DocumentClient();
 const tableName = process.env.CLIENT_TABLE;
 const UserPoolId = process.env.USER_POOL_ID;
 
@@ -9,6 +9,7 @@ async function signup(event, context) {
   const { firstname, lastname, phone, email, password } = JSON.parse(
     event.body
   );
+  let result;
   const params = {
     UserPoolId,
     Username: email,
@@ -34,32 +35,25 @@ async function signup(event, context) {
     },
     projects: [],
     authToken: "null",
-    password
+    password,
   };
 
   try {
     const response = await cognito.adminCreateUser(params).promise();
-    if (response.User) {
-      await dynamodb
-        .put({
-          TableName: tableName,
-          Item,
-        })
-        .promise(); 
-    return{
-        statusCode: 201,
-        body: JSON.stringify({message: "Created a new user!"})
-    }
-    }
+    result = response;
   } catch (err) {
     console.error(err);
-    return {
-      statusCode: 501,
-      body: JSON.stringify({
-        message: "Something wnet wrong",
-        error: err.stack,
-      }),
-    };
+    return sendResponse(501, {
+      message: "Soomething went wrong!",
+      error: err.stack,
+    });
+  }
+
+  if (result.User) {
+    const result = await put(tableName, Item);
+    if (result.error) {
+      return sendResponse(501, { message: "Something went wrong!" });
+    }
   }
 }
 
