@@ -17,6 +17,8 @@ provider:
     CLIENT_ID: { Ref: UserClient }
     CLIENT_TABLE: ${self:service}-clientTable-${sls:stage}
     MAIL_QUEUE_URL: ${self:custom.MailQueue.url}
+    ORDERS_TABLE: ${self:custom.ordersTableName}
+    CLIENT_IMAGE_BUCKET: ${self:custom.clientImagesBucket.name}
     REGION: ${self:custom.region}
   iam:
     role:
@@ -31,10 +33,14 @@ provider:
             - dynamodb:PutItem
             - dynamodb:UpdateItem
             - sqs:SendMessage
+            - s3:PutObject
           Resource:
             - ${self:custom.clientTableArn}
             - ${self:custom.userPoolArn}
             - ${self:custom.MailQueue.arn}
+            - ${self:custom.ordersTableArn}
+            - arn:aws:s3:::${self:custom.clientImagesBucket.name}/*
+
   httpApi:
     authorizers:
       cAuthorizer:
@@ -83,6 +89,32 @@ resources:
           - AttributeName: email
             KeyType: HASH
 
+    languviClientImagesBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.clientImagesBucket.name}
+    
+    languviClientImagesBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref languviClientImagesBucket
+        PolicyDocument:
+          Statement:
+            - Sid: PublicRead
+              Effect: Allow
+              Principal: '*'
+              Action:
+                - s3:GetObject
+              Resource: arn:aws:s3:::${self:custom.clientImagesBucket.name}/*  
+  Outputs:
+    clientTableName:
+      Value: ${self:service}-clientTable-${sls:stage}
+      Export:
+        Name: ${self:service}-clientTable-${sls:stage}-Name
+    clientTableArn:
+      Value: ${self:custom.clientTableArn}
+      Export:
+        Name: ${self:service}-clientTable-${sls:stage}-Arn
 
 functions:
   signup:
@@ -122,7 +154,14 @@ functions:
           authorizer:
             name: cAuthorizer
             
-          
+  clientUpdate:
+    handler: src/client/editprofile.handler
+    events:
+      - httpApi:
+          path: /editprofile
+          method: POST
+          authorizer:
+            name: cAuthorizer
 
 custom:
   clientTableArn: !GetAtt ClientTable.Arn
@@ -135,9 +174,12 @@ custom:
         - !Ref 'AWS::Region'
         - '.amazonaws.com/'
         - !Ref UserPool
-
+  clientImagesBucket:
+    name: languvi-client-images-bucket-${self:provider.stage}
   MailQueue:
     arn: !ImportValue MailQueue-${sls:stage}-Arn
     url: !ImportValue MailQueue-${sls:stage}-Url
+  ordersTableArn: !ImportValue OrdersTable-${sls:stage}-Arn
+  ordersTableName: !ImportValue OrdersTable-${sls:stage}-Name
   bundle:
     linting: false
