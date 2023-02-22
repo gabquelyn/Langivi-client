@@ -162,6 +162,15 @@ functions:
           method: POST
           authorizer:
             name: cAuthorizer
+  
+  createorder:
+    handler: src/client/placeorder.handler
+    events:
+      - httpApi:
+          path: /order
+          method: POST
+          authorizer:
+            name: cAuthorizer
 
 custom:
   clientTableArn: !GetAtt ClientTable.Arn
