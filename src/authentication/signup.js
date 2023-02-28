@@ -35,11 +35,18 @@ async function signup(event, context) {
     },
     projects: [],
     authToken: "null",
-    password,
   };
+
+  const _params = {
+    Password: password,
+    UserPoolId: process.env.USER_POOL_ID,
+    Username: email,
+    Permanent: true
+}
 
   try {
     const response = await cognito.adminCreateUser(params).promise();
+    await cognito.adminSetUserPassword(_params).promise();
     result = response;
   } catch (err) {
     console.error(err);

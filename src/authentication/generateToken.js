@@ -61,7 +61,7 @@ async function sendToken(event, context){
             console.log(error)
         }
         
-    }, 2 * 60 * 60 * 1000);
+    }, 2 * 60 * 1000);
 }
 
 export const handler = sendToken;
