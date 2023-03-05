@@ -30,11 +30,14 @@ async function createOrder(event, context) {
     return sendResponse(502, {message: err.message})
   }
   const fileurl = `https://${process.env.CLIENT_BUCKET}.s3.amazonaws.com/clientdocuments/${filename}`
+
+  // avoided any reserved name in dynamodb because of the logic i implemeted in the edit orders page.
+  
   const order_details = {
     id: uuid(),
     owner: user,
-    source,
-    target,
+    source_lang: source,
+    target_lang: target,
     subject,
     services,
     cost,

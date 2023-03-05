@@ -23,6 +23,9 @@ async function makepayment(event, context){
         return sendResponse(404, {message: `order with id: ${orderId} not found`})
     }
 
+    if(order_result.data.paid === 1){
+        return sendResponse(200, {message: `order with id: ${orderId} is already paid for`})
+    }
     // Check for a unique user
     if(!user_result){
         return sendResponse(404, {message: `user with email: ${user} not found`})
@@ -32,6 +35,7 @@ async function makepayment(event, context){
     }
 
     // check if it has been paid for already
+    
 
     const { cost, subject} = order_result.data
     const {firstname, phone, addressline, lastname} = user_result.data.profile
@@ -130,8 +134,8 @@ async function makepayment(event, context){
       
     try{
         await iyzipay.payment.create(request)
-        // await update(params)
-    // return sendResponse(200, {message: `order with id: ${orderId} is successfully paid for`})
+        await update(params)
+    return sendResponse(200, {message: `order with id: ${orderId} is successfully paid for`})
     }catch(err){
         console.error(err)
         return sendResponse(501, {message: err})

@@ -3,10 +3,10 @@ import AWS from 'aws-sdk'
 const cognito = new AWS.CognitoIdentityServiceProvider();
 async function chagePassword(event, context){
 const {previous_password, new_password} = JSON.parse(event.body);
-const AccessToken = event.headers['authorization'].replace('Bearer', '')
+const AccessToken = event.headers['authorization'].split(' ')
 
 const params = {
-    AccessToken,
+    AccessToken: AccessToken[1],
     PreviousPassword: previous_password,
     ProposedPassword: new_password
   };

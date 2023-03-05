@@ -2,13 +2,15 @@ import AWS from "aws-sdk";
 import sendResponse from "../../lib/sendResponse";
 import { put } from "../../lib/actions";
 const cognito = new AWS.CognitoIdentityServiceProvider();
+const sqs = new AWS.SQS();
 const tableName = process.env.CLIENT_TABLE;
 const UserPoolId = process.env.USER_POOL_ID;
-
+import token from "../../lib/accessToken";
 async function signup(event, context) {
   const { firstname, lastname, phone, email, password } = JSON.parse(
     event.body
   );
+  const accessToken = token(5)
   let result;
   const params = {
     UserPoolId,
@@ -33,8 +35,7 @@ async function signup(event, context) {
       nativelanguage: "null",
       image: "null",
     },
-    projects: [],
-    authToken: "null",
+    authToken: accessToken,
   };
 
   const _params = {
@@ -62,6 +63,24 @@ async function signup(event, context) {
       return sendResponse(501, { message: "Something went wrong!" });
     }
   }
+
+  const email_params = {
+    QueueUrl: process.env.MAIL_QUEUE_URL,
+    MessageBody: JSON.stringify({
+        subject: 'Verify your email address',
+        body: `Your email verification code is ${accessToken}, it expires in 10 minutes`,
+        recipient: email
+    })
+}
+
+try{
+  const output = await sqs.sendMessage(email_params).promise()
+  console.log(output);
+}catch(err){
+  console.error(err)
+  return sendResponse(501, {messgae: err.message});
+}
+
 }
 
 export const handler = signup;

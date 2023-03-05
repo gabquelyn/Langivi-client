@@ -19,9 +19,7 @@ provider:
     MAIL_QUEUE_URL: ${self:custom.MailQueue.url}
     ORDERS_TABLE: ${self:custom.ordersTableName}
     CLIENT_BUCKET: ${self:custom.clientBucket.name}
-    TOPIC_PRICING_TABLE: ${self:custom.topicsTable.name}
     SERVICE_TABLE: ${self:custom.serviceTable.name}
-    LANGUAGE_PAIR_TABLE: ${self:custom.languagePairTable.name}
     REGION: ${self:custom.region}
     API_KEY: ${self:custom.iyzicoApi.key}
     SECRET_KEY: ${self:custom.iyzicoApi.secret}
@@ -37,7 +35,6 @@ provider:
             - cognito-idp:AdminSetUserPassword
             - cognito-idp:AdminUpdateUserAttributes
             - dynamodb:GetItem
-            - dynamodb:Query
             - dynamodb:PutItem
             - dynamodb:UpdateItem
             - sqs:SendMessage
@@ -47,11 +44,11 @@ provider:
             - ${self:custom.userPoolArn}
             - ${self:custom.MailQueue.arn}
             - ${self:custom.ordersTableArn}
-            - ${self:custom.topicsTable.arn}
             - ${self:custom.serviceTable.arn}
             - arn:aws:s3:::${self:custom.clientBucket.name}/*
 
   httpApi:
+    cors: true
     authorizers:
       cAuthorizer:
         type: jwt
@@ -210,24 +207,6 @@ functions:
           authorizer:
             name: cAuthorizer
     
-  topicprice:
-    handler: src/client/clientsubjectpricing.handler
-    events:
-      - httpApi:
-          path: /topic/{topic}
-          method: GET
-          authorizer:
-            name: cAuthorizer
-
-  pairprice:
-    handler: src/client/clientwordpricing.handler
-    events:
-      - httpApi:
-          path: /pair/{source}/{target}
-          method: GET
-          authorizer:
-            name: cAuthorizer
-
 custom:
   clientTableArn: !GetAtt ClientTable.Arn
   userPoolArn: !GetAtt UserPool.Arn
@@ -246,12 +225,6 @@ custom:
     url: !ImportValue MailQueue-${sls:stage}-Url
   ordersTableArn: !ImportValue OrdersTable-${sls:stage}-Arn
   ordersTableName: !ImportValue OrdersTable-${sls:stage}-Name
-  topicsTable:
-    name: !ImportValue topicsTable-${self:provider.stage}-Name
-    arn: !ImportValue topicsTable-${self:provider.stage}-Arn
-  languagePairTable:
-    name: !ImportValue languagePairTable-${self:provider.stage}-Name
-    arn: !ImportValue languagePairTable-${self:provider.stage}-Arn
   serviceTable:
     name: !ImportValue ServicesTable-${self:provider.stage}-Name
     arn: !ImportValue ServicesTable-${self:provider.stage}-Arn
