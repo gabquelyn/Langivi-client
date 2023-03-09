@@ -17,7 +17,7 @@ provider:
     CLIENT_ID: { Ref: UserClient }
     CLIENT_TABLE: ${self:service}-clientTable-${sls:stage}
     MAIL_QUEUE_URL: ${self:custom.MailQueue.url}
-    ORDERS_TABLE: ${self:custom.ordersTableName}
+    ORDERS_TABLE: ${self:custom.clientOrdersTable.name}
     CLIENT_BUCKET: ${self:custom.clientBucket.name}
     SERVICE_TABLE: ${self:custom.serviceTable.name}
     REGION: ${self:custom.region}
@@ -43,7 +43,7 @@ provider:
             - ${self:custom.clientTableArn}
             - ${self:custom.userPoolArn}
             - ${self:custom.MailQueue.arn}
-            - ${self:custom.ordersTableArn}
+            - ${self:custom.clientOrdersTable.arn}
             - ${self:custom.serviceTable.arn}
             - arn:aws:s3:::${self:custom.clientBucket.name}/*
 
@@ -223,8 +223,11 @@ custom:
   MailQueue:
     arn: !ImportValue MailQueue-${sls:stage}-Arn
     url: !ImportValue MailQueue-${sls:stage}-Url
-  ordersTableArn: !ImportValue OrdersTable-${sls:stage}-Arn
-  ordersTableName: !ImportValue OrdersTable-${sls:stage}-Name
+  
+  clientOrdersTable:
+    name: !ImportValue clientOrdersTable-${self:provider.stage}-Name
+    arn: !ImportValue clientOrdersTable-${self:provider.stage}-Arn
+
   serviceTable:
     name: !ImportValue ServicesTable-${self:provider.stage}-Name
     arn: !ImportValue ServicesTable-${self:provider.stage}-Arn

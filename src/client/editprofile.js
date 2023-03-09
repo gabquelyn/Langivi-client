@@ -9,11 +9,11 @@ async function update_profile(event, context){
 
 
   if(profile.image.includes('data:image/') && profile.image.includes('base64')){
-    const base64 = image.replace(/^data:image\/\w+;base64,/,'');
+    const base64 = profile.image.replace(/^data:image\/\w+;base64,/,'');
     const buffer = Buffer.from(base64, 'base64');
     try{
       const uploadtoS3Result = await uploadPictureToS3(user + '.jpg', buffer);
-      imageUrl = uploadtoS3Result.Location;
+      const imageUrl = uploadtoS3Result.Location;
       profile.image = imageUrl
       console.log(uploadtoS3Result);
     }catch(err){
