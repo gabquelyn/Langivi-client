@@ -19,7 +19,9 @@ provider:
     MAIL_QUEUE_URL: ${self:custom.MailQueue.url}
     ORDERS_TABLE: ${self:custom.clientOrdersTable.name}
     CLIENT_BUCKET: ${self:custom.clientBucket.name}
+    LANGUAGE_PAIR_TABLE: ${self:custom.languagePairTable.name}
     SERVICE_TABLE: ${self:custom.serviceTable.name}
+    TOPICS_TABLE: ${self:custom.topicsTable.name}
     REGION: ${self:custom.region}
     API_KEY: ${self:custom.iyzicoApi.key}
     SECRET_KEY: ${self:custom.iyzicoApi.secret}
@@ -37,6 +39,7 @@ provider:
             - dynamodb:GetItem
             - dynamodb:PutItem
             - dynamodb:UpdateItem
+            - 'dynamodb:Scan*'
             - sqs:SendMessage
             - s3:PutObject
           Resource:
@@ -45,6 +48,8 @@ provider:
             - ${self:custom.MailQueue.arn}
             - ${self:custom.clientOrdersTable.arn}
             - ${self:custom.serviceTable.arn}
+            - ${self:custom.languagePairTable.arn}
+            - ${self:custom.topicsTable.arn}
             - arn:aws:s3:::${self:custom.clientBucket.name}/*
 
   httpApi:
@@ -206,6 +211,24 @@ functions:
           method: GET
           authorizer:
             name: cAuthorizer
+
+  gettopicprice:
+    handler: src/client/gettopicprice.handler
+    events: 
+      - httpApi:
+          path: /topic
+          method: POST
+          authorizer:
+            name: cAuthorizer
+
+  getpairprice:
+    handler: src/client/getpairprice.handler
+    events: 
+      - httpApi:
+          path: /pair
+          method: POST
+          authorizer:
+            name: cAuthorizer
     
 custom:
   clientTableArn: !GetAtt ClientTable.Arn
@@ -227,7 +250,12 @@ custom:
   clientOrdersTable:
     name: !ImportValue clientOrdersTable-${self:provider.stage}-Name
     arn: !ImportValue clientOrdersTable-${self:provider.stage}-Arn
-
+  topicsTable:
+    name: !ImportValue topicsTableTable-${self:provider.stage}-Name
+    arn: !ImportValue topicsTableTable-${self:provider.stage}-Arn
+  languagePairTable:
+    name: !ImportValue LanguagePairTable-${self:provider.stage}-Name
+    arn: !ImportValue LanguagePairTable-${self:provider.stage}-Arn
   serviceTable:
     name: !ImportValue ServicesTable-${self:provider.stage}-Name
     arn: !ImportValue ServicesTable-${self:provider.stage}-Arn
