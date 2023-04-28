@@ -9,11 +9,10 @@ const iyzipay = new Iyzipay({
 });
 
 async function makepayment(event, context){
-    const user = event.requestContext.authorizer.jwt.claims.username
+    // const user = event.requestContext.authorizer.jwt.claims.username
     const {cardHolderName, cardNumber, expireMonth, expireYear, cvc} = JSON.parse(event.body);
     const {orderId} = event.pathParameters;
     const order_result = await get(process.env.ORDERS_TABLE, {id: orderId})
-    const user_result = await get(process.env.CLIENT_TABLE, {email: user})
 
     //  Check for a unique order
     if(order_result.error){
@@ -23,9 +22,16 @@ async function makepayment(event, context){
         return sendResponse(404, {message: `order with id: ${orderId} not found`})
     }
 
+    if(order_result.data.standing !== 'awaiting payment'){
+        return sendResponse(405, {message: "Payment has not been requested for yet!"})
+    }
+
     if(order_result.data.paid === 1){
         return sendResponse(200, {message: `order with id: ${orderId} is already paid for`})
     }
+
+    const user_result = await get(process.env.CLIENT_TABLE, {email: order_result?.data?.owner})
+
     // Check for a unique user
     if(!user_result){
         return sendResponse(404, {message: `user with email: ${user} not found`})

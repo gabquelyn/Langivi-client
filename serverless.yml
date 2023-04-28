@@ -42,6 +42,7 @@ provider:
             - 'dynamodb:Scan*'
             - sqs:SendMessage
             - s3:PutObject
+            - "dynamodb:Query*"
           Resource:
             - ${self:custom.clientTableArn}
             - ${self:custom.userPoolArn}
@@ -128,6 +129,14 @@ resources:
       Value: ${self:custom.clientTableArn}
       Export:
         Name: ${self:service}-clientTable-${sls:stage}-Arn
+    clientbucketname:
+      Value: ${self:custom.clientBucket.name}
+      Export:
+        Name: ${self:service}-clientBucket-${sls:stage}-Name
+    clientbucketarn:
+      Value: arn:aws:s3:::${self:custom.clientBucket.name}/*
+      Export:
+        Name: ${self:service}-clientBucket-${sls:stage}-Arn
 
 functions:
   signup:
@@ -194,14 +203,12 @@ functions:
           authorizer:
             name: cAuthorizer
 
-  makepayment:
+  paybill:
     handler: src/client/pay.handler
     events: 
       - httpApi:
-          path: /pay/{orderId}
+          path: /paybill/{orderId}
           method: POST
-          authorizer:
-            name: cAuthorizer
 
   getplan:
     handler: src/client/clientpackage.handler
@@ -227,6 +234,15 @@ functions:
       - httpApi:
           path: /pair
           method: POST
+          authorizer:
+            name: cAuthorizer
+
+  getorders:
+    handler: src/client/getorders.handler
+    events: 
+      - httpApi:
+          path: /orders
+          method: GET
           authorizer:
             name: cAuthorizer
     
