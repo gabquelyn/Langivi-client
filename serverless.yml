@@ -22,6 +22,7 @@ provider:
     LANGUAGE_PAIR_TABLE: ${self:custom.languagePairTable.name}
     SERVICE_TABLE: ${self:custom.serviceTable.name}
     TOPICS_TABLE: ${self:custom.topicsTable.name}
+    DUMMYORDERS_TABLE: ${self:custom.dummyorders.name}
     REGION: ${self:custom.region}
     API_KEY: ${self:custom.iyzicoApi.key}
     SECRET_KEY: ${self:custom.iyzicoApi.secret}
@@ -51,6 +52,7 @@ provider:
             - ${self:custom.serviceTable.arn}
             - ${self:custom.languagePairTable.arn}
             - ${self:custom.topicsTable.arn}
+            - ${self:custom.dummyorders.arn}
             - arn:aws:s3:::${self:custom.clientBucket.name}/*
 
   httpApi:
@@ -102,11 +104,33 @@ resources:
           - AttributeName: email
             KeyType: HASH
 
+    DummyOrdersTable: 
+      Type: AWS::DynamoDB::Table
+      Properties: 
+        TableName: ${self:custom.dummyorders.name}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName : id
+            AttributeType: S
+        KeySchema: 
+          - AttributeName: id
+            KeyType: HASH
+
     languviClientBucket:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${self:custom.clientBucket.name}
+        CorsConfiguration: 
+          CorsRules:
+            - AllowedOrigins: 
+                - '*'
+              AllowedMethods: 
+                - GET
+              MaxAge: 3000
+              AllowedHeaders:
+                - Authorization
     
+
     languviClientBucketPolicy:
       Type: AWS::S3::BucketPolicy
       Properties:
@@ -175,6 +199,20 @@ functions:
       - httpApi:
           path: /auth_email
           method: POST
+
+  forgot:
+    handler: src/authentication/forgot.handler
+    events:
+      - httpApi:
+          path: /forgot/{email}
+          method: POST
+
+  confirm:
+    handler: src/authentication/confirm.handler
+    events:
+      - httpApi:
+          path: /confirm
+          method: POST
   
   clientAcc:
     handler: src/client/getprofile.handler
@@ -210,32 +248,36 @@ functions:
           path: /paybill/{orderId}
           method: POST
 
-  getplan:
-    handler: src/client/clientpackage.handler
+  contact:
+    handler: src/client/contact.handler
     events: 
       - httpApi:
-          path: /plan
-          method: GET
-          authorizer:
-            name: cAuthorizer
-
-  gettopicprice:
-    handler: src/client/gettopicprice.handler
-    events: 
-      - httpApi:
-          path: /topic
+          path: /contact
           method: POST
-          authorizer:
-            name: cAuthorizer
 
-  getpairprice:
+
+
+  getpaircost:
     handler: src/client/getpairprice.handler
     events: 
       - httpApi:
-          path: /pair
+          path: /pair_cost
           method: POST
-          authorizer:
-            name: cAuthorizer
+  
+  getplancost:
+    handler: src/client/clientpackage.handler
+    events: 
+      - httpApi:
+          path: /plan_cost
+          method: GET
+
+  gettopiccost:
+    handler: src/client/gettopicprice.handler
+    events: 
+      - httpApi:
+          path: /topic_cost
+          method: POST
+
 
   getorders:
     handler: src/client/getorders.handler
@@ -245,9 +287,37 @@ functions:
           method: GET
           authorizer:
             name: cAuthorizer
+
+  getquote:
+    handler: src/client/getquote.handler
+    events: 
+      - httpApi:
+          path: /quote
+          method: POST
+
+  convertquote:
+    handler: src/client/convertquote.handler
+    events: 
+      - httpApi:
+          path: /convertquote
+          method: POST
+          authorizer:
+            name: cAuthorizer
+
+  getjobs:
+    handler: src/client/getjobs.handler
+    events: 
+      - httpApi:
+          path: /jobs
+          method: GET
+          authorizer:
+            name: cAuthorizer
     
 custom:
   clientTableArn: !GetAtt ClientTable.Arn
+  dummyorders:
+    name: ${self:service}-DummyOrdersTable-${sls:stage}
+    arn: !GetAtt DummyOrdersTable.Arn
   userPoolArn: !GetAtt UserPool.Arn
   region: us-east-1
   cognitoIssuerUrl: 

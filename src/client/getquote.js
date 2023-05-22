@@ -3,8 +3,7 @@ import multipart from "lambda-multipart-parser";
 import AWS from "aws-sdk";
 import { put } from "../../lib/actions";
 const S3 = new AWS.S3();
-async function createOrder(event, context) {
-  const user = event.requestContext.authorizer.jwt.claims.username;
+async function getquote(event, context) {
   const result = await multipart.parse(event);
   const createdAt = new Date();
   const source = result.source.toLowerCase();
@@ -19,8 +18,8 @@ async function createOrder(event, context) {
   const pdue = result.proofreading_due;
   const odue = result.order_due;
 
-
   const filekeys = [];
+
   if (!result.files.length === 0 && !result.text) {
     return sendResponse(502, {
       message: "Some missing paramters prevent this order placement",
@@ -35,7 +34,7 @@ async function createOrder(event, context) {
       return sendResponse(502, { message: "Invalid delivery email address" });
     }
   }
-
+  
   function generateNodeId() {
     const timestamp = Date.now().toString(16);
     return timestamp;
@@ -83,11 +82,9 @@ async function createOrder(event, context) {
 
   // return sendResponse(200, {message: filekeys})
 
-  const order_details = {
+  const quote = {
     id: generateNodeId(),
     delivery_address: delivery || "",
-    catTools: "false",
-    owner: user,
     source_lang: source,
     target_lang: target,
     subject,
@@ -97,40 +94,23 @@ async function createOrder(event, context) {
     word_count,
     services,
     createdAt: createdAt.toISOString(),
-    translation_due: "",
-    proofreading_due: "",
-    order_due: "",
-    mandate_proofread: "true",
-    translator: "null",
-    paid: 0,
-    proofreader: "null",
-    cancelled: "false",
-    standing: "unapproved",
     filekeys,
-    translator_file_url: [],
-    proofreader_file_url: [],
-    allow_automatic: "false",
-    translator_request: {
-      translator_notes: "",
-      admin_notes: "",
-    },
     meta_data: {
       payment_date: '',
       pdue,
       odue,
       tdue
-    },
-    mate_data:{}
+    }
   };
 
-  const response = await put(process.env.ORDERS_TABLE, order_details);
+  const response = await put(process.env.DUMMYORDERS_TABLE, quote);
   if (response.error) {
     return sendResponse(501, { message: response.error.message });
   }
 
   return sendResponse(200, {
-    message: `order created succesfully with id: ${order_details.id}`,
+    message: `quote created succesfully with id: ${quote.id}`, quoteId: quote.id
   });
 }
 
-export const handler = createOrder;
+export const handler = getquote;
