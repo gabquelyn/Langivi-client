@@ -152,6 +152,12 @@ async function checkstatus(event, context) {
           <hr/>
         </div>
       </div>
+      <script type="text/javascript">
+      // Redirect after a timeout of 10 seconds (5000 milliseconds)
+      setTimeout(function() {
+        window.location.replace("https://languivi.netlify.app/auth");
+      }, 10000);
+    </script>
     </body>
   </html>
   `;

@@ -79,10 +79,10 @@ async function initializeCheckout(event, context) {
       //     zipCode: '34742'
       // },
       billingAddress: {
-          contactName: 'Jane Doe',
-          city: 'Istanbul',
+          contactName: 'Languvi Limited',
+          city: 'Ankara',
           country: 'Turkey',
-          address: 'Nidakule Göztepe, Merdivenköy Mah. Bora Sok. No:1',
+          address: 'Languvi Ltd. Turgutlu St. No: 10, Ankara, Turkey',
           zipCode: '34742'
       },
       basketItems: [
