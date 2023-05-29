@@ -29,13 +29,6 @@ async function createOrder(event, context) {
     });
   }
 
-  if (delivery) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(delivery)) {
-      return sendResponse(502, { message: "Invalid delivery email address" });
-    }
-  }
-
   function generateNodeId() {
     const timestamp = Date.now().toString(16);
     return timestamp;
@@ -48,6 +41,7 @@ async function createOrder(event, context) {
       Key: `clientdocuments/${filename}`,
       Body: result.text,
       ContentType: "text/plain",
+      ContentDisposition: 'attachment',
     };
 
     try {
@@ -69,6 +63,7 @@ async function createOrder(event, context) {
         Key: `clientdocuments/${fileName}`,
         Body: fileContent,
         ContentType: fileType,
+        ContentDisposition: 'attachment',
       };
 
       try {

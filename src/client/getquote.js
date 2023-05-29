@@ -41,12 +41,13 @@ async function getquote(event, context) {
   }
   // to save text files when there is text.
   if (result.text) {
-    const filename = generateNodeId() + user + ".txt";
+    const filename = generateNodeId() + ".txt";
     const params = {
       Bucket: process.env.CLIENT_BUCKET,
       Key: `clientdocuments/${filename}`,
       Body: result.text,
       ContentType: "text/plain",
+      ContentDisposition: 'attachment',
     };
 
     try {
@@ -68,6 +69,7 @@ async function getquote(event, context) {
         Key: `clientdocuments/${fileName}`,
         Body: fileContent,
         ContentType: fileType,
+        ContentDisposition: 'attachment',
       };
 
       try {

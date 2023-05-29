@@ -24,7 +24,7 @@ async function sendToken(event, context){
         QueueUrl: process.env.MAIL_QUEUE_URL,
         MessageBody: JSON.stringify({
             subject: 'Verify your email address',
-            body: `Your email verification code is ${accessToken}, it expires in 3 hours`,
+            body: `Your email verification code is ${accessToken}`,
             recipient: email
         })
     }
@@ -43,25 +43,6 @@ async function sendToken(event, context){
         return sendResponse(501, {messgae: err.message});
     }
 
-    setTimeout(async() => {
-        const params  = {
-            TableName: tableName,
-            Key: {email},
-            UpdateExpression: 'set #token = :t',
-            ExpressionAttributeValues: {
-                ':t' : "null"
-            },
-            ExpressionAttributeNames: {
-                '#token' : 'authToken'
-            }
-        }
-       
-        const result = await update(params)
-        if(result.error){
-            console.log(error)
-        }
-        
-    }, 2 * 60 * 1000);
 }
 
 export const handler = sendToken;

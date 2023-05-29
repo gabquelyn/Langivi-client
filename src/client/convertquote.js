@@ -32,6 +32,7 @@ async function convert(event, context) {
     mandate_proofread: "true",
     allow_automatic: "false",
     translator_file_url: [],
+    mate_data:{},
     proofreader_file_url: [],
     translator_request: {
       translator_notes: "",

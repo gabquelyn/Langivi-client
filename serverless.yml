@@ -23,6 +23,7 @@ provider:
     SERVICE_TABLE: ${self:custom.serviceTable.name}
     TOPICS_TABLE: ${self:custom.topicsTable.name}
     DUMMYORDERS_TABLE: ${self:custom.dummyorders.name}
+    TRANSACTIONS_TABLE: ${self:custom.transactions.name}
     REGION: ${self:custom.region}
     API_KEY: ${self:custom.iyzicoApi.key}
     SECRET_KEY: ${self:custom.iyzicoApi.secret}
@@ -53,6 +54,7 @@ provider:
             - ${self:custom.languagePairTable.arn}
             - ${self:custom.topicsTable.arn}
             - ${self:custom.dummyorders.arn}
+            - ${self:custom.transactions.arn}
             - arn:aws:s3:::${self:custom.clientBucket.name}/*
 
   httpApi:
@@ -108,6 +110,18 @@ resources:
       Type: AWS::DynamoDB::Table
       Properties: 
         TableName: ${self:custom.dummyorders.name}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName : id
+            AttributeType: S
+        KeySchema: 
+          - AttributeName: id
+            KeyType: HASH
+
+    TransactionsTable: 
+      Type: AWS::DynamoDB::Table
+      Properties: 
+        TableName: ${self:custom.transactions.name}
         BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
           - AttributeName : id
@@ -241,12 +255,27 @@ functions:
           authorizer:
             name: cAuthorizer
 
-  paybill:
-    handler: src/client/pay.handler
+  checkout:
+    handler: src/client/initializecheckout.handler
     events: 
       - httpApi:
-          path: /paybill/{orderId}
+          path: /initialize/{orderId}
           method: POST
+
+  yourorder:
+    handler: src/client/yourorder.handler
+    events: 
+      - httpApi:
+          path: /yourorder/{orderId}
+          method: GET
+
+  status:
+    handler: src/client/checkstatus.handler
+    events: 
+      - httpApi:
+          path: /retrieve/{conversationId}
+          method: POST
+  
 
   contact:
     handler: src/client/contact.handler
@@ -318,6 +347,10 @@ custom:
   dummyorders:
     name: ${self:service}-DummyOrdersTable-${sls:stage}
     arn: !GetAtt DummyOrdersTable.Arn
+  transactions:
+    name: ${self:service}-transactions-${sls:stage}
+    arn: !GetAtt TransactionsTable.Arn
+
   userPoolArn: !GetAtt UserPool.Arn
   region: us-east-1
   cognitoIssuerUrl: 
