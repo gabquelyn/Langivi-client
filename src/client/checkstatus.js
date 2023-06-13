@@ -1,8 +1,8 @@
 import util from "util";
 import Iyzipay from "iyzipay";
 import AWS from "aws-sdk";
-// import sendResponse from "../../lib/sendResponse";
 const dynamodb = new AWS.DynamoDB.DocumentClient();
+const sqs = new AWS.SQS();
 const iyzipay = new Iyzipay({
   apiKey: process.env.API_KEY,
   secretKey: process.env.SECRET_KEY,
@@ -32,15 +32,41 @@ async function checkstatus(event, context) {
     const result = await promisifiedcheckStauts(request);
     details = result;
     if (result.paymentStatus === "SUCCESS") {
+      const order_result = await dynamodb
+        .get({
+          TableName: process.env.ORDERS_TABLE,
+          Key: { id: conversationId },
+        })
+        .promise();
+
+      const { meta_data, allow_automatic, source_lang, target_lang } =
+        order_result.Item;
+
+      const now = new Date();
+      const t_date = new Date(now.toISOString());
+      const p_date = new Date(now.toISOString());
+      const o_date = new Date(now.toISOString());
+
+      t_date.setDate(now.getDate() + +meta_data.tdue);
+      const _total = +meta_data.tdue + +meta_data.pdue;
+      p_date.setDate(now.getDate() + _total);
+      const total = _total + +meta_data.odue;
+      o_date.setDate(now.getDate() + total);
+
       const update_params = {
         TableName: process.env.ORDERS_TABLE,
         Key: { id: conversationId },
-        UpdateExpression: "SET standing = :s, paid = :t",
+        UpdateExpression:
+          "SET standing = :s, paid = :t, proofreading_due = :p, translation_due = :tt, order_due = :o",
         ExpressionAttributeValues: {
           ":s": "unassigned translation",
           ":t": 1,
+          ":p": p_date.toISOString(),
+          ":tt": t_date.toISOString(),
+          ":o": o_date.toISOString(),
         },
       };
+
       await dynamodb.update(update_params).promise();
 
       const Item = {
@@ -50,6 +76,43 @@ async function checkstatus(event, context) {
       await dynamodb
         .put({ TableName: process.env.TRANSACTIONS_TABLE, Item })
         .promise();
+
+      // send invitation emails to translators
+      if (allow_automatic === "true") {
+        const params = {
+          TableName: process.env.TRANSLATORS_TABLE,
+          IndexName: "translatorStatus",
+          KeyConditionExpression: "approved = :yes",
+          ExpressionAttributeValues: {
+            ":yes": "true",
+          },
+        };
+
+        const translators = await dynamodb.query(params).promise();
+        const ALL_TRANSLATORS_IN_PAIR = translators.Items.filter((translator) =>
+          translator._details.language_pairs.some(
+            (pair) =>
+              pair.from.toLowerCase() === source_lang &&
+              pair.to.toLowerCase() === target_lang
+          )
+        );
+
+        // send invitation email to every translator in that pair
+        if (ALL_TRANSLATORS_IN_PAIR.length !== 0) {
+          for (const translator of ALL_TRANSLATORS_IN_PAIR) {
+            const email_params = {
+              QueueUrl: process.env.MAIL_QUEUE_URL,
+              MessageBody: JSON.stringify({
+                subject: "New Awaiting Order",
+                body: `Hello ${translator.profile.firstname}, A new translation project of source language of ${source_lang} and target language of ${target_lang}. Visit to pick job. Goodluck!`,
+                recipient: translator.email,
+              }),
+            };
+            await sqs.sendMessage(email_params).promise();
+          }
+        }
+      }
+      
     }
   } catch (err) {
     console.error({ error: err });
@@ -155,7 +218,7 @@ async function checkstatus(event, context) {
       <script type="text/javascript">
       // Redirect after a timeout of 10 seconds (5000 milliseconds)
       setTimeout(function() {
-        window.location.replace("https://languivi.netlify.app/auth");
+        window.location.replace("https://www.languvi.com/auth");
       }, 10000);
     </script>
     </body>

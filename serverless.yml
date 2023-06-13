@@ -24,10 +24,12 @@ provider:
     TOPICS_TABLE: ${self:custom.topicsTable.name}
     DUMMYORDERS_TABLE: ${self:custom.dummyorders.name}
     TRANSACTIONS_TABLE: ${self:custom.transactions.name}
+    TRANSLATORS_TABLE: ${self:custom.translatorTable.name}
     REGION: ${self:custom.region}
     API_KEY: ${self:custom.iyzicoApi.key}
     SECRET_KEY: ${self:custom.iyzicoApi.secret}
     URI: ${self:custom.iyzicoApi.uri}
+    EXCHANGE_ID: ${self:custom.openexchange.id}
 
   iam:
     role:
@@ -56,6 +58,7 @@ provider:
             - ${self:custom.dummyorders.arn}
             - ${self:custom.transactions.arn}
             - arn:aws:s3:::${self:custom.clientBucket.name}/*
+            - ${self:custom.translatorTable.arn}
 
   httpApi:
     cors: true
@@ -259,7 +262,7 @@ functions:
     handler: src/client/initializecheckout.handler
     events: 
       - httpApi:
-          path: /initialize/{orderId}
+          path: /initialize/{orderId}/{currency}
           method: POST
 
   yourorder:
@@ -379,9 +382,15 @@ custom:
     name: !ImportValue ServicesTable-${self:provider.stage}-Name
     arn: !ImportValue ServicesTable-${self:provider.stage}-Arn
   iyzicoApi:
-    key: sandbox-bXOiNWy4HRcFvcROF8I1evQWPudyXrWg
-    secret: sandbox-d6rVfj5gzyziXP3LQrn3oZthtWieidPt
-    uri: https://sandbox-api.iyzipay.com
+    key: wN8mHGzPPPQZxI1cD0VCLQuHXbO5i7DH #sandbox-bXOiNWy4HRcFvcROF8I1evQWPudyXrWg
+    secret: NpgHbUDr12eW1ydp5AsdCVKX5RhuMZXK #sandbox-d6rVfj5gzyziXP3LQrn3oZthtWieidPt
+    uri: https://api.iyzipay.com/ 
+  openexchange:
+    id: 510ddd04ba794a57b038624b0b02c27a
+
+  translatorTable:
+    name: !ImportValue languvi-translator-translatorsTable-${sls:stage}-Name
+    arn: !ImportValue languvi-translator-translatorsTable-${sls:stage}-Arn
 
   bundle:
     linting: false

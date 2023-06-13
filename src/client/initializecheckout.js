@@ -1,7 +1,8 @@
 // @ts-ignore
-import { get} from "../../lib/actions";
+import { get } from "../../lib/actions";
 import sendResponse from "../../lib/sendResponse";
-import util from 'util'
+import util from "util";
+import axios from 'axios'
 import Iyzipay from "iyzipay";
 const iyzipay = new Iyzipay({
   apiKey: process.env.API_KEY,
@@ -10,8 +11,8 @@ const iyzipay = new Iyzipay({
 });
 
 async function initializeCheckout(event, context) {
-  const { orderId } = event.pathParameters;
-  const ipAddress = event.requestContext.http.sourceIp
+  const { orderId, currency } = event.pathParameters;
+  const ipAddress = event.requestContext.http.sourceIp;
   const order_result = await get(process.env.ORDERS_TABLE, { id: orderId });
   if (!order_result.data) {
     return sendResponse(404, {
@@ -35,7 +36,6 @@ async function initializeCheckout(event, context) {
     });
   }
 
-
   const user_result = await get(process.env.CLIENT_TABLE, {
     email: order_result?.data?.owner,
   });
@@ -47,61 +47,70 @@ async function initializeCheckout(event, context) {
     });
   }
 
+  let conversion
+
+  try {
+    const URL = `https://openexchangerates.org/api/latest.json?app_id=${process.env.EXCHANGE_ID}&base=USD`;
+    const response = await axios.get(URL);
+    conversion = response.data.rates[currency];
+  } catch (err) {
+    console.error(err);
+    return sendResponse(501, {message: err})
+  }
+
   const { cost, subject, id } = order_result.data;
-  const { firstname, phone, addressline, lastname} =
-    user_result.data.profile;
-    const total = +cost + 0.5
-    var request = {
-      locale: Iyzipay.LOCALE.EN,
-      conversationId: id,
-      price: cost,
-      paidPrice: total,
-      currency: Iyzipay.CURRENCY.TRY,
-      paymentGroup: Iyzipay.PAYMENT_GROUP.PRODUCT,
-      callbackUrl: `https://bbp5cz0pc9.execute-api.us-east-1.amazonaws.com/retrieve/${id}`,
-      buyer: {
-          id: 'BY789',
-          name: firstname,
-          surname: lastname,
-          gsmNumber: phone,
-          email: user_result.data.email,
-          identityNumber: phone,
-          registrationAddress: addressline,
-          ip: ipAddress,
-          city: 'Istanbul',
-          country: 'Turkey',
-      },
-      // shippingAddress: {
-      //     contactName: 'Jane Doe',
-      //     city: 'Istanbul',
-      //     country: 'Turkey',
-      //     address: 'Nidakule Göztepe, Merdivenköy Mah. Bora Sok. No:1',
-      //     zipCode: '34742'
-      // },
-      billingAddress: {
-          contactName: 'Languvi Limited',
-          city: 'Ankara',
-          country: 'Turkey',
-          address: 'Languvi Ltd. Turgutlu St. No: 10, Ankara, Turkey',
-          zipCode: '34742'
-      },
-      basketItems: [
-          {
-              id: `translation_${id}`,
-              name: subject,
-              category1: 'Collectibles',
-              category2: 'Documents',
-              itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL,
-              price: cost
-          },
-      ]
-    };
+  const tax = 0.001 * cost * conversion;
+  const base = cost * conversion;
+  const total = tax + base;
+  const { firstname, phone, addressline, lastname, city, country } = user_result.data.profile;
 
-function initializeCheckoutForm(request, callback) {
-  iyzipay.checkoutFormInitialize.create(request, callback);
-}
+  var request = {
+    locale: Iyzipay.LOCALE.EN,
+    conversationId: id,
+    price: base.toFixed(2),
+    paidPrice: total.toFixed(2),
+    currency: Iyzipay.CURRENCY[currency],
+    paymentGroup: Iyzipay.PAYMENT_GROUP.PRODUCT,
+    callbackUrl: `https://bbp5cz0pc9.execute-api.us-east-1.amazonaws.com/retrieve/${id}`,
+    buyer: {
+      id: "BY789",
+      name: firstname,
+      surname: lastname,
+      gsmNumber: phone,
+      email: user_result.data.email,
+      identityNumber: phone,
+      registrationAddress: addressline,
+      ip: ipAddress,
+      city: city || "Istanbul",
+      country: country || "Turkey",
+    },
 
-const promisifiedInitializeCheckoutForm = util.promisify(initializeCheckoutForm);
+    billingAddress: {
+      contactName: "Languvi Limited",
+      city: "Ankara",
+      country: "Turkey",
+      address: "Languvi Ltd. Turgutlu St. No: 10, Ankara, Turkey",
+      zipCode: "34742",
+    },
+    basketItems: [
+      {
+        id: `translation_${id}`,
+        name: subject,
+        category1: "Collectibles",
+        category2: "Documents",
+        itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL,
+        price: base.toFixed(2),
+      },
+    ],
+  };
+
+  function initializeCheckoutForm(request, callback) {
+    iyzipay.checkoutFormInitialize.create(request, callback);
+  }
+
+  const promisifiedInitializeCheckoutForm = util.promisify(
+    initializeCheckoutForm
+  );
 
   try {
     const result = await promisifiedInitializeCheckoutForm(request);
@@ -112,11 +121,11 @@ const promisifiedInitializeCheckoutForm = util.promisify(initializeCheckoutForm)
       }),
     };
   } catch (err) {
-    console.error(err)
+    console.error(err);
     return {
       statusCode: 500,
       body: JSON.stringify({
-        error: 'Internal Server Error',
+        error: "Internal Server Error",
       }),
     };
   }

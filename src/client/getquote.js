@@ -28,12 +28,6 @@ async function getquote(event, context) {
     });
   }
 
-  if (delivery) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(delivery)) {
-      return sendResponse(502, { message: "Invalid delivery email address" });
-    }
-  }
   
   function generateNodeId() {
     const timestamp = Date.now().toString(16);
