@@ -12,6 +12,17 @@ provider:
   memorySize: 256
   stage: ${opt:stage, 'dev'}
   region: us-east-1
+  
+  # setting cross origin resource sharing
+  cors:
+    origins:
+      - 'https://www.languvi.com'
+      - 'https://languvi.com'
+    headers:
+      - Content-Type
+      - Authorization
+    allowCredentials: true
+
   environment:
     USER_POOL_ID: { Ref: UserPool }
     CLIENT_ID: { Ref: UserClient }
@@ -158,8 +169,12 @@ resources:
               Effect: Allow
               Principal: '*'
               Action:
-                - s3:GetObject
+                - s3:*
               Resource: arn:aws:s3:::${self:custom.clientBucket.name}/*  
+              Condition:
+                StringLike:
+                  aws:Referer:
+                    "https://www.languvi.com/*" 
               
   Outputs:
     clientTableName:
